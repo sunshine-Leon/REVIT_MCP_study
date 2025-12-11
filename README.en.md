@@ -483,41 +483,79 @@ Gemini CLI is Google's command-line AI tool that lets you chat directly with Gem
    npm install -g @google/gemini-cli
    ```
    - Wait for installation to complete (you'll see a green checkmark)
+   
+   > ⚠️ **If you encounter "script execution is disabled" error**:
+   > Run this command first to allow script execution, then retry installation:
+   > ```powershell
+   > Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   > ```
 
-#### Step 2.5: Use Pre-Configured Version from This Project (Easiest!)
+#### Step 2: Configure MCP Server Connection
 
-**Easiest way: Directly use the configuration files we've prepared**
+> [!IMPORTANT]
+> **Gemini CLI uses `settings.json` for MCP configuration, NOT `--config` parameter!**
+> 
+> This is different from Claude Desktop and other tools. Gemini CLI reads the `~/.gemini/settings.json` file in the user's home directory.
 
-1. **Find the project's configuration file**
-   - In the `MCP-Server` folder, find `gemini_mcp_config.json`
-   - Remember its full location (example: `C:\Users\User\Desktop\REVIT MCP\MCP-Server\gemini_mcp_config.json`)
+**Configuration Method: Edit the `settings.json` file**
 
-2. **Run in PowerShell**
-   ```powershell
-   $env:PATH = "C:\Program Files\Git\bin;$env:PATH"
-   cd "C:\Users\User\Desktop\REVIT MCP\MCP-Server"
-   gemini --config gemini_mcp_config.json
+1. **Open the settings file location**
+   - Press `Win + R`, enter the following path, press Enter:
+     ```
+     %USERPROFILE%\.gemini
+     ```
+   - Find `settings.json` and open it with Notepad
+
+2. **Add MCP Server configuration**
+   
+   Modify the file content as follows (if the file already has content, keep it and add the `mcpServers` section):
+   ```json
+   {
+     "mcpServers": {
+       "revit-mcp": {
+         "command": "node",
+         "args": [
+           "C:\\your-path\\REVIT MCP\\MCP-Server\\build\\index.js"
+         ],
+         "env": {
+           "REVIT_VERSION": "2022"
+         }
+       }
+     }
+   }
    ```
+   
+   > 💡 **Please change the path to your actual project location!**
+   > 
+   > Example: `C:\\Users\\YourName\\Desktop\\REVIT MCP\\MCP-Server\\build\\index.js`
 
-#### Step 3: Launch (Beginner Version)
+3. **Save the file and restart Gemini CLI**
+
+#### Step 3: Launch and Test
 
 1. **First launch Revit**
    - Open Revit 2022
    - In the "MCP Tools" panel, click "**MCP Service (On/Off)**" button
    - You'll see "WebSocket server started" when successful
 
-2. **Then open Gemini CLI**
-   - Open PowerShell (Administrator)
+2. **Open Gemini CLI**
+   - Open PowerShell
    - Run:
    ```powershell
    gemini
    ```
-   - Now you can type commands in Gemini to control Revit
 
-3. **Test conversation**
+3. **Confirm MCP is connected**
+   ```
+   /mcp list
+   ```
+   - You should see the `revit-mcp` server
+
+4. **Test conversation**
    ```
    > List all floors in the Revit project
    > Create a 5-meter-long wall for me
+   ```
    ```
 
 ---

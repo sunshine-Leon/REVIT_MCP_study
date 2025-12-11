@@ -483,38 +483,75 @@ Gemini CLI 是 Google 的命令列 AI 工具，可以在終端機直接與 Gemin
    npm install -g @google/gemini-cli
    ```
    - 等待安裝完成（會看到綠色的勾勾）
+   
+   > ⚠️ **如果遇到「已停用指令碼執行」錯誤**：
+   > 先執行此指令允許腳本執行，然後再重試安裝：
+   > ```powershell
+   > Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   > ```
 
-#### 步驟 2.5：使用本專案提供的已配置版本（最簡單！）
+#### 步驟 2：設定 MCP Server 連線
 
-**最簡單的方式：直接複製我們已經準備好的設定檔**
+> [!IMPORTANT]
+> **Gemini CLI 使用 `settings.json` 設定 MCP，而非 `--config` 參數！**
+> 
+> 這與 Claude Desktop 和其他工具不同。Gemini CLI 會讀取使用者目錄下的 `~/.gemini/settings.json` 檔案。
 
-1. **找到本專案的設定檔**
-   - 在 `MCP-Server` 資料夾中找到 `gemini_mcp_config.json` 檔案
-   - 記住此檔案的完整位置（例如：`C:\Users\User\Desktop\REVIT MCP\MCP-Server\gemini_mcp_config.json`）
+**設定方式：編輯 `settings.json` 檔案**
 
-2. **在 PowerShell 中執行**
-   ```powershell
-   $env:PATH = "C:\Program Files\Git\bin;$env:PATH"
-   cd "C:\Users\User\Desktop\REVIT MCP\MCP-Server"
-   gemini --config gemini_mcp_config.json
+1. **開啟設定檔位置**
+   - 按 `Win + R`，輸入以下路徑，按 Enter：
+     ```
+     %USERPROFILE%\.gemini
+     ```
+   - 找到 `settings.json` 檔案並用記事本開啟
+
+2. **加入 MCP Server 設定**
+   
+   將檔案內容修改為（如果檔案已有其他內容，請保留並加入 `mcpServers` 區塊）：
+   ```json
+   {
+     "mcpServers": {
+       "revit-mcp": {
+         "command": "node",
+         "args": [
+           "C:\\您的路徑\\REVIT MCP\\MCP-Server\\build\\index.js"
+         ],
+         "env": {
+           "REVIT_VERSION": "2022"
+         }
+       }
+     }
+   }
    ```
+   
+   > 💡 **請將路徑改為您實際的專案位置！**
+   > 
+   > 例如：`C:\\Users\\YourName\\Desktop\\REVIT MCP\\MCP-Server\\build\\index.js`
 
-#### 步驟 3：啟動（初學者版）
+3. **儲存檔案並重新啟動 Gemini CLI**
+
+#### 步驟 3：啟動並測試
 
 1. **先啟動 Revit**
    - 開啟 Revit 2022
    - 在「MCP Tools」面板點擊「**MCP 服務 (開/關)**」按鈕
    - 看到「WebSocket 伺服器已啟動」就成功了
 
-2. **再開啟 Gemini CLI**
-   - 開啟 PowerShell (系統管理員)
+2. **開啟 Gemini CLI**
+   - 開啟 PowerShell
    - 執行：
    ```powershell
    gemini
    ```
-   - 現在您可以在 Gemini 中輸入指令來控制 Revit
 
-3. **測試對話**
+3. **確認 MCP 已連接**
+   ```
+   /mcp list
+   ```
+   - 應該會看到 `revit-mcp` 伺服器
+
+4. **測試對話**
    ```
    > 請列出 Revit 專案中的所有樓層
    > 請幫我建立一面 5 米長的牆

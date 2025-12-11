@@ -1,9 +1,9 @@
 ﻿{
     "mcpServers": {
         "revit-mcp": {
-            "command": "node",
+            "command": "C:\\Program Files\\nodejs\\node.exe",
             "args": [
-                "【請修改此路徑】/MCP-Server/build/index.js"
+                "C:\\Users\\User\\Desktop\\REVIT MCP\\MCP-Server\\build\\index.js"
             ],
             "env": {
                 "REVIT_VERSION": "2022"
