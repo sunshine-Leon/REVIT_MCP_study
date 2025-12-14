@@ -754,6 +754,10 @@ Antigravity 的一大特色是內建瀏覽器子代理程式，可讓 AI 直接�
 | `get_all_grids` | 取得所有網格線（含座標，可計算交會點） |
 | `get_column_types` | 取得柱類型清單（含尺寸資訊） |
 | `create_column` | 建立柱子 |
+| `get_furniture_types` | 取得家具類型清單 |
+| `place_furniture` | 放置家具 |
+| `get_room_info` | 取得房間詳細資訊（中心點、邊界範圍） |
+| `get_rooms_by_level` | 取得樓層所有房間清單（含面積統計） |
 
 ---
 

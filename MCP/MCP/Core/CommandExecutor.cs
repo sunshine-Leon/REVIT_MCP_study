@@ -45,6 +45,10 @@ namespace RevitMCP.Core
                         result = QueryElements(parameters);
                         break;
                     
+                    case "create_floor":
+                        result = CreateFloor(parameters);
+                        break;
+                    
                     case "get_all_levels":
                         result = GetAllLevels();
                         break;
@@ -55,6 +59,18 @@ namespace RevitMCP.Core
                     
                     case "delete_element":
                         result = DeleteElement(parameters);
+                        break;
+                    
+                    case "modify_element_parameter":
+                        result = ModifyElementParameter(parameters);
+                        break;
+                    
+                    case "create_door":
+                        result = CreateDoor(parameters);
+                        break;
+                    
+                    case "create_window":
+                        result = CreateWindow(parameters);
                         break;
                     
                     case "get_all_grids":
@@ -314,6 +330,272 @@ namespace RevitMCP.Core
                 return new
                 {
                     Message = $"成功刪除元素 ID: {elementId}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// 建立樓板
+        /// </summary>
+        private object CreateFloor(JObject parameters)
+        {
+            Document doc = _uiApp.ActiveUIDocument.Document;
+            
+            var pointsArray = parameters["points"] as JArray;
+            string levelName = parameters["levelName"]?.Value<string>() ?? "Level 1";
+            
+            if (pointsArray == null || pointsArray.Count < 3)
+            {
+                throw new Exception("需要至少 3 個點來建立樓板");
+            }
+
+            using (Transaction trans = new Transaction(doc, "建立樓板"))
+            {
+                trans.Start();
+
+                // 取得樓層
+                Level level = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .FirstOrDefault(l => l.Name.Contains(levelName) || levelName.Contains(l.Name));
+
+                if (level == null)
+                {
+                    level = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level))
+                        .Cast<Level>()
+                        .OrderBy(l => l.Elevation)
+                        .FirstOrDefault();
+                }
+
+                if (level == null)
+                {
+                    throw new Exception($"找不到樓層: {levelName}");
+                }
+
+                // 建立邊界曲線
+                CurveArray curveArray = new CurveArray();
+                var points = pointsArray.Select(p => new XYZ(
+                    p["x"]?.Value<double>() / 304.8 ?? 0,
+                    p["y"]?.Value<double>() / 304.8 ?? 0,
+                    0
+                )).ToList();
+
+                for (int i = 0; i < points.Count; i++)
+                {
+                    XYZ start = points[i];
+                    XYZ end = points[(i + 1) % points.Count];
+                    curveArray.Append(Line.CreateBound(start, end));
+                }
+
+                // 取得預設樓板類型
+                FloorType floorType = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FloorType))
+                    .Cast<FloorType>()
+                    .FirstOrDefault();
+
+                if (floorType == null)
+                {
+                    throw new Exception("找不到樓板類型");
+                }
+
+                // 建立樓板
+                Floor floor = doc.Create.NewFloor(curveArray, floorType, level, false);
+
+                trans.Commit();
+
+                return new
+                {
+                    ElementId = floor.Id.IntegerValue,
+                    Level = level.Name,
+                    Message = $"成功建立樓板，ID: {floor.Id.IntegerValue}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// 修改元素參數
+        /// </summary>
+        private object ModifyElementParameter(JObject parameters)
+        {
+            Document doc = _uiApp.ActiveUIDocument.Document;
+            int elementId = parameters["elementId"]?.Value<int>() ?? 0;
+            string parameterName = parameters["parameterName"]?.Value<string>();
+            string value = parameters["value"]?.Value<string>();
+
+            if (string.IsNullOrEmpty(parameterName))
+            {
+                throw new Exception("請指定參數名稱");
+            }
+
+            Element element = doc.GetElement(new ElementId(elementId));
+            if (element == null)
+            {
+                throw new Exception($"找不到元素 ID: {elementId}");
+            }
+
+            using (Transaction trans = new Transaction(doc, "修改參數"))
+            {
+                trans.Start();
+
+                Parameter param = element.LookupParameter(parameterName);
+                if (param == null)
+                {
+                    throw new Exception($"找不到參數: {parameterName}");
+                }
+
+                if (param.IsReadOnly)
+                {
+                    throw new Exception($"參數 {parameterName} 是唯讀的");
+                }
+
+                bool success = false;
+                switch (param.StorageType)
+                {
+                    case StorageType.String:
+                        success = param.Set(value);
+                        break;
+                    case StorageType.Double:
+                        if (double.TryParse(value, out double dVal))
+                            success = param.Set(dVal);
+                        break;
+                    case StorageType.Integer:
+                        if (int.TryParse(value, out int iVal))
+                            success = param.Set(iVal);
+                        break;
+                    default:
+                        throw new Exception($"不支援的參數類型: {param.StorageType}");
+                }
+
+                if (!success)
+                {
+                    throw new Exception($"設定參數失敗");
+                }
+
+                trans.Commit();
+
+                return new
+                {
+                    ElementId = elementId,
+                    ParameterName = parameterName,
+                    NewValue = value,
+                    Message = $"成功修改參數 {parameterName}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// 建立門
+        /// </summary>
+        private object CreateDoor(JObject parameters)
+        {
+            Document doc = _uiApp.ActiveUIDocument.Document;
+            int wallId = parameters["wallId"]?.Value<int>() ?? 0;
+            double locationX = parameters["locationX"]?.Value<double>() ?? 0;
+            double locationY = parameters["locationY"]?.Value<double>() ?? 0;
+
+            Wall wall = doc.GetElement(new ElementId(wallId)) as Wall;
+            if (wall == null)
+            {
+                throw new Exception($"找不到牆 ID: {wallId}");
+            }
+
+            using (Transaction trans = new Transaction(doc, "建立門"))
+            {
+                trans.Start();
+
+                // 取得門類型
+                FamilySymbol doorSymbol = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .OfCategory(BuiltInCategory.OST_Doors)
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault();
+
+                if (doorSymbol == null)
+                {
+                    throw new Exception("找不到門類型");
+                }
+
+                if (!doorSymbol.IsActive)
+                {
+                    doorSymbol.Activate();
+                    doc.Regenerate();
+                }
+
+                // 取得牆的樓層
+                Level level = doc.GetElement(wall.LevelId) as Level;
+                XYZ location = new XYZ(locationX / 304.8, locationY / 304.8, level?.Elevation ?? 0);
+
+                FamilyInstance door = doc.Create.NewFamilyInstance(
+                    location, doorSymbol, wall, level, 
+                    Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+
+                trans.Commit();
+
+                return new
+                {
+                    ElementId = door.Id.IntegerValue,
+                    DoorType = doorSymbol.Name,
+                    WallId = wallId,
+                    Message = $"成功建立門，ID: {door.Id.IntegerValue}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// 建立窗
+        /// </summary>
+        private object CreateWindow(JObject parameters)
+        {
+            Document doc = _uiApp.ActiveUIDocument.Document;
+            int wallId = parameters["wallId"]?.Value<int>() ?? 0;
+            double locationX = parameters["locationX"]?.Value<double>() ?? 0;
+            double locationY = parameters["locationY"]?.Value<double>() ?? 0;
+
+            Wall wall = doc.GetElement(new ElementId(wallId)) as Wall;
+            if (wall == null)
+            {
+                throw new Exception($"找不到牆 ID: {wallId}");
+            }
+
+            using (Transaction trans = new Transaction(doc, "建立窗"))
+            {
+                trans.Start();
+
+                // 取得窗類型
+                FamilySymbol windowSymbol = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .OfCategory(BuiltInCategory.OST_Windows)
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault();
+
+                if (windowSymbol == null)
+                {
+                    throw new Exception("找不到窗類型");
+                }
+
+                if (!windowSymbol.IsActive)
+                {
+                    windowSymbol.Activate();
+                    doc.Regenerate();
+                }
+
+                // 取得牆的樓層
+                Level level = doc.GetElement(wall.LevelId) as Level;
+                XYZ location = new XYZ(locationX / 304.8, locationY / 304.8, (level?.Elevation ?? 0) + 3); // 窗戶高度 3 英尺
+
+                FamilyInstance window = doc.Create.NewFamilyInstance(
+                    location, windowSymbol, wall, level,
+                    Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+
+                trans.Commit();
+
+                return new
+                {
+                    ElementId = window.Id.IntegerValue,
+                    WindowType = windowSymbol.Name,
+                    WallId = wallId,
+                    Message = $"成功建立窗，ID: {window.Id.IntegerValue}"
                 };
             }
         }

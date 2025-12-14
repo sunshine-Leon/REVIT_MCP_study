@@ -6,6 +6,41 @@
 
 ---
 
+## [1.4.0] - 2025-12-14
+
+### ✨ 新功能
+
+#### 容積檢討工具
+- **新增 `get_rooms_by_level`**：取得指定樓層的所有房間清單
+  - 回傳：房間名稱、編號、面積
+  - 回傳：中心點座標（公釐）
+  - 回傳：資料完整度統計（有/無名稱的房間數量）
+  - 可用於容積檢討作業
+
+### 🐛 Bug 修正
+
+#### 補齊 C# 實作
+- **補齊 `create_floor`**：建立樓板（原本只有 TypeScript 定義，缺少 C# 實作）
+- **補齊 `modify_element_parameter`**：修改元素參數
+- **補齊 `create_door`**：建立門
+- **補齊 `create_window`**：建立窗
+
+### 📚 文件更新
+
+- 更新 README.md 工具清單，補齊遺漏的工具說明
+- 新增 `domain/` 資料夾，放置容積檢討開發文件
+
+### 📁 修改檔案
+
+| 檔案 | 變更 |
+|------|------|
+| `MCP-Server/src/tools/revit-tools.ts` | 新增 get_rooms_by_level 工具定義 |
+| `MCP/MCP/Core/CommandExecutor.cs` | 新增 5 個命令實作 |
+| `README.md` | 更新工具清單 |
+| `domain/README.md` | 新增容積檢討開發計劃 |
+
+---
+
 ## [1.3.0] - 2025-12-12
 
 ### ✨ 新功能
