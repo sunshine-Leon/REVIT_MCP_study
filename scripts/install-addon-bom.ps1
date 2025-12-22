@@ -386,6 +386,34 @@ if (Test-Path $sourceJson) {
 Write-Host ""
 
 # ============================================================================
+# 額外檢查：驗證 WebSocket Port 配置
+# ============================================================================
+$configDir = Join-Path $appDataPath "RevitMCP"
+$configJsonPath = Join-Path $configDir "config.json"
+
+if (Test-Path $configJsonPath) {
+    try {
+        $configJson = Get-Content $configJsonPath -Raw | ConvertFrom-Json
+        $currentPort = $configJson.Port
+        
+        if ($currentPort -ne 8964) {
+            Write-Host "⚠️ 注意：偵測到目前的 MCP Port 為 $currentPort (預設應為 8964)" -ForegroundColor Yellow
+            $resetChoice = Read-Host "是否要將 Port 重設為標準值 8964？(Y/N)"
+            if ($resetChoice -eq "Y" -or $resetChoice -eq "y") {
+                $configJson.Port = 8964
+                $configJson | ConvertTo-Json | Set-Content $configJsonPath -Encoding UTF8
+                Write-Host "✓ 已成功重設 Port 為 8964" -ForegroundColor Green
+            }
+        }
+    }
+    catch {
+        Write-Host "⚠️ 警告：無法解析 config.json，跳過 Port 檢查" -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+
+# ============================================================================
 # 安裝完成
 # ============================================================================
 
